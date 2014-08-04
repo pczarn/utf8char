@@ -18,7 +18,7 @@ fn str_usv_chars(b: &mut Bencher) {
 #[bench]
 fn str_utf8_chars(b: &mut Bencher) {
     let mut iter = SPACE.utf8_chars();
-    let c = Some(Utf8Char::from_char(' '));
+    let c = Some(unsafe{Utf8Char::from_raw([b' ', 0, 0, 0])});
     b.iter(|| {
         while iter.next() == c {}
     })
