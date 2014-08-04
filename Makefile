@@ -235,6 +235,7 @@ test-external: $(EXE_DIR)/test-external
 
 $(EXE_DIR)/test-external: $(SOURCE_FILES) | rlib $(EXE_DIR)/ tests/test.rs
 	$(Q)$(COMPILER) --target "$(TARGET)" $(COMPILER_FLAGS) --test tests/test.rs -o "$(EXE_DIR)/test-external" -L "$(TARGET_LIB_DIR)" -L "target" \
+	&& $(COMPILER) --target "$(TARGET)" $(COMPILER_FLAGS) --test tests/test.rs -o "$(EXE_DIR)/test-external.ll" -L "$(TARGET_LIB_DIR)" -L "target" --emit=ir\
 	&& echo "--- Built external test runner"
 
 test-internal: $(EXE_DIR)/test-internal
