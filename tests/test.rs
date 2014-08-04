@@ -34,28 +34,26 @@ fn count_leading_char_spaces(s: &str) -> uint {
     while iter.next() == c {i += 1;} i
 }
 
+static TEST_STR: &'static str = "aabaaceddddddąćz";
+
 #[bench]
 fn str_indexing(b: &mut Bencher) {
-    let s = "aabaacedddddddddd";
     let mut i = 0u;
     b.iter(|| {
-        test::black_box(s.char_at(i));
+        test::black_box(TEST_STR.char_at(i));
         i = (i + 7) & 15;
     });
 }
 
 #[bench]
 fn vec_of_char_indexing(b: &mut Bencher) {
-    let s = "aabaacedddddddddd";
     let mut i = 0u;
-    let s: Vec<char> = s.chars().collect();
+    let s: Vec<char> = TEST_STR.chars().collect();
     b.iter(|| {
         test::black_box(s.get(i));
         i = (i + 7) & 15;
     });
 }
-
-static TEST_STR: &'static str = "aabaaceddddddąćz";
 
 #[bench]
 fn string_to_vec_of_char(b: &mut Bencher) {
@@ -112,24 +110,36 @@ fn string_to_vec_of_utf8char(b: &mut Bencher) {
         let mut bytes = s.as_bytes().iter().rev();
         loop {
             match bytes.next() {
-                Some(&c) => {
+                Some(ch_ref) => {
                     p = p.offset(-1);
 
-                    if c < 128 {
-                        *p = [c, 0, 0, 0];
+                    let ch_ref = if *ch_ref < 128 {
+                        ch_ref
                     } else {
-                        let c2 = unwrap_or_0(bytes.next());
-                        if c2 & 192 == 128 { // cont
-                            let c3 = unwrap_or_0(bytes.next());
-                            if c3 & 192 == 128 { // cont
-                                *p = [unwrap_or_0(bytes.next()), c3, c2, c];
-                            } else {
-                                *p = [c3, c2, c, 0]
-                            }
-                        } else {
-                            *p = [c2, c, 0, 0];
+                        match bytes.next() {
+                            Some(ch2_ref) => {
+                                if *ch2_ref & 192 == 128 { // cont
+                                    match bytes.next() {
+                                        Some(ch3_ref) => {
+                                            if *ch3_ref & 192 == 128 { // cont
+                                                match bytes.next() {
+                                                    Some(ch4_ref) => ch4_ref,
+                                                    None => ch3_ref
+                                                }
+                                            } else {
+                                                ch3_ref
+                                            }
+                                        }
+                                        None => ch2_ref
+                                    }
+                                } else {
+                                    ch2_ref
+                                }
+                            },
+                            None => ch_ref
                         }
-                    }
+                    };
+                    *p = *(ch_ref as *const u8 as *const [u8, ..4]);
                 }
                 None => break
             }
@@ -137,35 +147,35 @@ fn string_to_vec_of_utf8char(b: &mut Bencher) {
 
         let mut p2 = p as *mut u8;
 
-        slice::raw::buf_as_slice(p as *const Utf8Char, nchars, |vec| {
-            for &c in vec.iter() {
-                match c {
-                    Utf8Char { data: [a @ 0x00..0x7f, _, _, _] } => {
-                        *p2 = a;
-                        p2 = p2.offset(1);
-                    }
-                    Utf8Char { data: [a @ 0xC0..0xDF, b, _, _] } => {
-                        *p2 = a;
-                        *p2.offset(1) = b;
-                        p2 = p2.offset(2);
-                    }
-                    Utf8Char { data: [a @ 0xE0..0xEF, b, c, _] } => {
-                        *p2 = a;
-                        *p2.offset(1) = b;
-                        *p2.offset(2) = c;
-                        p2 = p2.offset(3);
-                    }
-                    Utf8Char { data: [a @ 0xF0..0xF7, b, c, d] } => {
-                        *p2 = a;
-                        *p2.offset(1) = b;
-                        *p2.offset(2) = c;
-                        *p2.offset(3) = d;
-                        p2 = p2.offset(4);
-                    }
-                    _ => ()
+        let mut items: slice::Items<Utf8Char> = unsafe { mem::transmute((p, str_end)) };
+
+        for &c in items {
+            match c {
+                Utf8Char { data: [a @ 0x00..0x7f, _, _, _] } => {
+                    *p2 = a;
+                    p2 = p2.offset(1);
                 }
+                Utf8Char { data: [a @ 0xC0..0xDF, b, _, _] } => {
+                    *p2 = a;
+                    *p2.offset(1) = b;
+                    p2 = p2.offset(2);
+                }
+                Utf8Char { data: [a @ 0xE0..0xEF, b, c, _] } => {
+                    *p2 = a;
+                    *p2.offset(1) = b;
+                    *p2.offset(2) = c;
+                    p2 = p2.offset(3);
+                }
+                Utf8Char { data: [a @ 0xF0..0xF7, b, c, d] } => {
+                    *p2 = a;
+                    *p2.offset(1) = b;
+                    *p2.offset(2) = c;
+                    *p2.offset(3) = d;
+                    p2 = p2.offset(4);
+                }
+                _ => ()
             }
-        });
+        }
     });
 }
 
