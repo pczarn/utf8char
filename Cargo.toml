@@ -1,0 +1,10 @@
+[package]
+
+name = "utf8char"
+version = "0.1.0"
+authors = [ "loebel.marvin@gmail.com" ]
+
+[[lib]]
+
+name = "utf8char"
+path = "src/lib.rs"
