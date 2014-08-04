@@ -7,4 +7,4 @@ authors = [ "loebel.marvin@gmail.com" ]
 [[lib]]
 
 name = "utf8char"
-path = "src/lib.rs"
+path = "src/utf8char.rs"
