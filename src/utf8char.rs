@@ -35,8 +35,13 @@ impl Utf8Char {
 }
 
 impl PartialEq for Utf8Char {
+    #[inline]
     fn eq(&self, other: &Utf8Char) -> bool {
-        self.data == other.data
+        unsafe {
+            let a: u32 = std::mem::transmute(self.data);
+            let b: u32 = std::mem::transmute(other.data);
+            a == b
+        }
     }
 }
 
@@ -49,7 +54,7 @@ macro_rules! next {
     ($iter:expr) => {
         match $iter.next() {
             Some(&b) => b,
-            None => 0,
+            None => return None,
         }
     }
 }
