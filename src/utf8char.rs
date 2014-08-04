@@ -12,7 +12,7 @@ macro_rules! iter_eq {
 }
 
 pub struct Utf8Char {
-    data: [u8, ..4]
+    pub data: [u8, ..4]
 }
 
 impl Utf8Char {
