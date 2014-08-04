@@ -63,19 +63,18 @@ impl<'a> Iterator<Utf8Char> for Utf8Chars<'a> {
     #[inline]
     fn next(&mut self) -> Option<Utf8Char> {
         let iter = &mut self.iter;
-        unsafe {
-            match iter.next() {
-                Some(&b) => match b {
-                    0x00..0x7f => Some(Utf8Char::from_raw([b, 0, 0, 0])),
-                    0xC0..0xDF => Some(Utf8Char::from_raw([b, next!(iter), 0, 0])),
-                    0xE0..0xEF => Some(Utf8Char::from_raw([b, next!(iter), next!(iter), 0])),
-                    0xF0..0xF7 => Some(Utf8Char::from_raw([b, next!(iter), next!(iter), next!(iter)])),
+        let leading = next!(iter);
+        let buf = match leading {
+            0x00..0x7f => [leading, 0, 0, 0],
+            0xC0..0xDF => [leading, next!(iter), 0, 0],
+            0xE0..0xEF => [leading, next!(iter), next!(iter), 0],
+            0xF0..0xF7 => [leading, next!(iter), next!(iter), next!(iter)],
 
-                    // Unreachable for valid utf8 (good case for an attribute marking it)
-                    _ => None
-                },
-                None => None,
-            }
+            // Unreachable for valid utf8 (good case for an attribute)
+            _ => return None
+        };
+        unsafe {
+            Some(Utf8Char::from_raw(buf))
         }
     }
 }
