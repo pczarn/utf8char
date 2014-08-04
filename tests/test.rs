@@ -38,9 +38,10 @@ static TEST_STR: &'static str = "aabaaceddddddąćz";
 
 #[bench]
 fn str_indexing(b: &mut Bencher) {
+    let s = "aabaaceddddddzzz";
     let mut i = 0u;
     b.iter(|| {
-        test::black_box(TEST_STR.char_at(i));
+        test::black_box(s.char_at(i));
         i = (i + 7) & 15;
     });
 }
@@ -50,7 +51,7 @@ fn vec_of_char_indexing(b: &mut Bencher) {
     let mut i = 0u;
     let s: Vec<char> = TEST_STR.chars().collect();
     b.iter(|| {
-        test::black_box(s.get(i));
+        test::black_box(s[i]);
         i = (i + 7) & 15;
     });
 }
@@ -75,28 +76,22 @@ fn string_to_vec_of_char(b: &mut Bencher) {
         }
 
         let mut p2 = p as *mut u8;
+
+
         unsafe {
-            slice::raw::buf_as_slice(p as *const char, nchars, |vec| {
-                for &c in vec.iter() {
-                    let n = c.encode_utf8(mem::transmute((p2, 4u)));
-                    p2 = p2.offset(n as int);
-                    p = p.offset(1);
-                }
-            });
+            let mut items: slice::Items<char> = mem::transmute((p, str_end));
+
+            for &c in items {
+                let n = c.encode_utf8(mem::transmute((p2, 4u)));
+                p2 = p2.offset(n as int);
+                p = p.offset(1);
+            }
         }
     });
 }
 
 #[bench]
 fn string_to_vec_of_utf8char(b: &mut Bencher) {
-    #[inline]
-    fn unwrap_or_0(opt: Option<&u8>) -> u8 {
-        match opt {
-            Some(&byte) => byte,
-            None => 0,
-        }
-    }
-
     let mut s = TEST_STR.to_string();
     let nchars = s.as_slice().chars().count();
     s.reserve(nchars * 4);
@@ -107,47 +102,14 @@ fn string_to_vec_of_utf8char(b: &mut Bencher) {
         };
         let mut p = str_end;
 
-        let mut bytes = s.as_bytes().iter().rev();
-        loop {
-            match bytes.next() {
-                Some(ch_ref) => {
-                    p = p.offset(-1);
-
-                    let ch_ref = if *ch_ref < 128 {
-                        ch_ref
-                    } else {
-                        match bytes.next() {
-                            Some(ch2_ref) => {
-                                if *ch2_ref & 192 == 128 { // cont
-                                    match bytes.next() {
-                                        Some(ch3_ref) => {
-                                            if *ch3_ref & 192 == 128 { // cont
-                                                match bytes.next() {
-                                                    Some(ch4_ref) => ch4_ref,
-                                                    None => ch3_ref
-                                                }
-                                            } else {
-                                                ch3_ref
-                                            }
-                                        }
-                                        None => ch2_ref
-                                    }
-                                } else {
-                                    ch2_ref
-                                }
-                            },
-                            None => ch_ref
-                        }
-                    };
-                    *p = *(ch_ref as *const u8 as *const [u8, ..4]);
-                }
-                None => break
-            }
+        for c in s.as_slice().utf8_chars().rev() {
+            p = p.offset(-1);
+            *p = c.into_raw();
         }
 
         let mut p2 = p as *mut u8;
 
-        let mut items: slice::Items<Utf8Char> = unsafe { mem::transmute((p, str_end)) };
+        let mut items: slice::Items<Utf8Char> = mem::transmute((p, str_end));
 
         for &c in items {
             match c {
