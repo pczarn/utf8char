@@ -8,24 +8,6 @@ static SPACE: &'static str = "                                                  
 static UTF8SPACE: Utf8Char = Utf8Char { data: [b' ', 0, 0, 0] };
 static CHARSPACE: char = ' ';
 
-#[bench]
-fn str_usv_chars(b: &mut Bencher) {
-    let c = Some(CHARSPACE);
-    b.iter(|| {
-        let mut iter = SPACE.chars();
-        while iter.next() == c {}
-    })
-}
-
-#[bench]
-fn str_utf8_chars(b: &mut Bencher) {
-    let c = Some(UTF8SPACE);
-    b.iter(|| {
-        let mut iter = SPACE.utf8_chars();
-        while iter.next() == c {}
-    })
-}
-
 #[inline(never)]
 fn count_leading_utf8_spaces(s: &str) -> uint {
     let mut iter = s.utf8_chars();
